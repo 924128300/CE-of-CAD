@@ -13,7 +13,7 @@ from .geometry import COORD_DECIMALS, LENGTH_DECIMALS, DMS_SECOND_DECIMALS, slop
 from .model import DrawingModel, EntityRecord
 from .section_sheet import block_points, prepare_sheet, write_block
 
-APP_VERSION = "1.4.0"
+APP_VERSION = "1.5.0"
 
 UNIT_CHOICES = {
     "drawing": "图纸单位",
@@ -36,6 +36,8 @@ class ExportOptions:
     scale_denominator: int = DEFAULT_SCALE
     fill_slope: bool = False
     reversed_count: int = 0
+    # 点选模式：每轮点选各占一块，取点规则固定为「按点选顺序」
+    pick_mode: bool = False
 
 
 @dataclass(slots=True)
@@ -118,6 +120,8 @@ def _write_info_sheet(wb: Workbook, model: DrawingModel, entities: list[EntityRe
          if options.fill_slope else "未反算（留空待填）"),
         ("导出时间", _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
         ("软件版本", f"DWG 坐标导出工具 {APP_VERSION}"),
+        ("选择方式", "点选（按端点顺序连线，每轮一块）" if options.pick_mode
+         else "线选（整条线按取点规则取点）"),
         ("要素数量", len(entities)),
         ("点总数", point_total),
     ]
@@ -151,8 +155,11 @@ def export_excel(model: DrawingModel, entities: list[EntityRecord],
     ws = wb.active
     ws.title = "坐标计算表"
 
+    # 点选块只导出被点中的那些点，不再按间距插值
     samples = [
-        block_points(entity, options.include_vertices, options.sample_step)
+        block_points(entity,
+                     True if entity.dxftype == "PICK" else options.include_vertices,
+                     options.sample_step)
         for entity in entities
     ]
     max_points = max((len(points) for points, _ in samples), default=1)
@@ -162,6 +169,8 @@ def export_excel(model: DrawingModel, entities: list[EntityRecord],
     row = 1
     point_total = 0
     for index, (points, cumulative) in enumerate(samples, start=1):
+        entity = entities[index - 1]
+        title = f"点选{index}" if entity.dxftype == "PICK" else f"线{index}"
         # 相邻两点的平距取累计平面长度之差：直线即水平距离，圆弧即弧长
         raw_spans = [max(cumulative[i + 1] - cumulative[i], 0.0)
                      for i in range(len(points) - 1)]
@@ -171,7 +180,7 @@ def export_excel(model: DrawingModel, entities: list[EntityRecord],
             # 高差与水平距离同取图纸原值，结果与比例尺、坐标单位无关
             slopes = [slope_ratio(points[i][2], points[i + 1][2], raw_spans[i])
                       for i in range(len(points) - 1)]
-        row = write_block(ws, row, points, spans, f"线{index}", factor, symbol, slopes)
+        row = write_block(ws, row, points, spans, title, factor, symbol, slopes)
         point_total += len(points)
 
     if options.include_info:

@@ -29,6 +29,7 @@ TYPE_LABELS = {
     "ARC": "圆弧",
     "CIRCLE": "圆",
     "POINT": "点",
+    "PICK": "点选路径",
 }
 
 
@@ -105,6 +106,8 @@ class PropertyPanel(QWidget):
         flips = reversed_handles or set()
         flipped = entity.handle in flips
         parts = []
+        if entity.dxftype == "PICK":
+            parts.append(f"点选块 {entity.layer}（{len(entity.points)} 点）")
         if len(entities) > 1:
             parts.append(f"共选中 {len(entities)} 条，显示第 1 条")
         if flipped:
@@ -269,7 +272,8 @@ class SelectionPanel(QWidget):
                      reversed_handles: set[int] | None = None) -> None:
         self.model.set_entities(entities, reversed_handles)
         self.title.setText(f"待导出列表 ({len(entities)})")
-        self.title.setToolTip("导出时每条线各占一块（9 行），块与块之间空一行")
+        self.title.setToolTip(
+            "线选：每条线一块；点选：每轮点选一块。各块 9 行，块间空一行")
         self.btn_export.setEnabled(bool(entities))
         self.btn_remove.setEnabled(bool(entities))
         self.btn_clear.setEnabled(bool(entities))

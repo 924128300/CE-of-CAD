@@ -10,6 +10,12 @@ ACCENT = "#2f81f7"
 SELECT = "#19e3ff"
 REVERSE = "#ff6b9d"
 HOVER = "#ffcc33"
+# 点选模式：端点标记、已完成的点选轮次、与线重合时的呼吸色（暗 ↔ 亮）
+SNAP = "#8da3b8"
+PICK_DONE = "#3f9e76"
+PICK_HOVER = "#ffe066"
+MATCH_DARK = "#0e5c67"
+MATCH_BRIGHT = "#b6fbff"
 DEFAULT_ENTITY = (210, 218, 228)
 
 STYLE_SHEET = f"""

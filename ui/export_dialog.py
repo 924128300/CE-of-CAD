@@ -33,24 +33,27 @@ from core.model import DrawingModel
 class ExportDialog(QDialog):
     def __init__(self, model: DrawingModel, include_vertices: bool = True,
                  sample_step: float = 1.0, scale_denominator: int = DEFAULT_SCALE,
-                 entity_count: int = 0, fill_slope: bool = False, parent=None) -> None:
+                 entity_count: int = 0, fill_slope: bool = False, parent=None,
+                 pick_mode: bool = False) -> None:
         super().__init__(parent)
         self.setWindowTitle("导出坐标计算表")
         self.setMinimumWidth(560)
         self._model = model
         self._fill_slope = bool(fill_slope)
+        self._pick_mode = bool(pick_mode)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
 
+        unit = "轮点选" if self._pick_mode else "条线"
         if entity_count > 1:
-            summary = QLabel(f"本次导出 {entity_count} 条线：每条线各占一块（9 行），"
-                             f"块与块之间空一行，全部写在同一张 sheet 里。")
+            summary = QLabel(f"本次导出 {entity_count} {unit}：每{'轮' if self._pick_mode else '条'}"
+                             f"各占一块（9 行），块与块之间空一行，全部写在同一张 sheet 里。")
             summary.setWordWrap(True)
             summary.setStyleSheet("color:#8a97a6;")
             layout.addWidget(summary)
         elif entity_count == 1:
-            layout.addWidget(QLabel("本次导出 1 条线。"))
+            layout.addWidget(QLabel(f"本次导出 1 {unit}。"))
 
         path_box = QGroupBox("保存位置")
         path_layout = QHBoxLayout(path_box)
@@ -79,6 +82,11 @@ class ExportDialog(QDialog):
         rule_layout.addLayout(row)
         self.radio_vertices.toggled.connect(lambda checked: self.step_spin.setEnabled(not checked))
         self.step_spin.setEnabled(self.radio_step.isChecked())
+        if self._pick_mode:
+            # 点选块只输出被点中的点，取点规则固定为「仅顶点」
+            self.radio_vertices.setChecked(True)
+            self.radio_step.setEnabled(False)
+            self.step_spin.setEnabled(False)
         layout.addWidget(rule_box)
 
         option_box = QGroupBox("其它选项")
@@ -121,6 +129,14 @@ class ExportDialog(QDialog):
         self.check_info.setChecked(True)
         option_layout.addWidget(self.check_info)
         layout.addWidget(option_box)
+
+        if self._pick_mode:
+            pick_tip = QLabel(
+                "点选模式：每一轮点选按单击顺序导出为一整块（左侧「工程名称」写作「点选N」），"
+                "点号按点选顺序排列，平距与方位由相邻两点直接计算，坡度同样按相邻两点反算。")
+            pick_tip.setWordWrap(True)
+            pick_tip.setStyleSheet("color:#8a97a6;")
+            layout.addWidget(pick_tip)
 
         tip = QLabel(
             "输出为「采场矿房坐标计算表」版本：每个点占两列合并，点号、X/Y/Z 坐标逐点排列；"
